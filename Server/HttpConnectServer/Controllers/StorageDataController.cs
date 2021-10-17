@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace HttpConnectServer.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("[controller]/[action]")]
     public class StorageDataController : ControllerBase
     {
         private readonly ILogger<StorageDataController> _logger;
