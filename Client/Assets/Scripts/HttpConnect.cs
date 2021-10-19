@@ -9,8 +9,18 @@ public class HttpConnect : MonoBehaviour
     Button btn_getData;
     Button btn_postData;
     Text txt_result;
+    Button btn_requestImg;
+
+    public Texture2D m_uploadImg;
+    private Texture2D m_downloadImg;
 
     private bool is_connecting = false;
+
+    Image img;
+
+    AudioClip m_soundClip;
+
+    Button btn_sound;
 
     // Start is called before the first frame update
     void Start()
@@ -33,6 +43,18 @@ public class HttpConnect : MonoBehaviour
                 else if (trans.name.CompareTo("btn_post") == 0)
                 {
                     btn_postData = trans.GetComponent<Button>();
+                }
+                else if (trans.name.CompareTo("btn_requestImg") == 0)
+                {
+                    btn_requestImg = trans.GetComponent<Button>();
+                }
+                else if (trans.name.CompareTo("Image") == 0)
+                {
+                    img = trans.GetComponent<Image>();
+                }
+                else if (trans.name.CompareTo("btn_sound") == 0)
+                {
+                    btn_sound = trans.GetComponent<Button>();
                 }
             }
 
@@ -58,6 +80,16 @@ public class HttpConnect : MonoBehaviour
 
                     StartCoroutine(IPostData());
                 }
+            });
+
+            btn_requestImg?.onClick.AddListener(() => {
+
+                StartCoroutine(IRequestPNG());
+            });
+
+            btn_sound?.onClick.AddListener(() =>
+            {
+                StartCoroutine(IPlaySound());
             });
         }
     }
@@ -90,10 +122,8 @@ public class HttpConnect : MonoBehaviour
         List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
         formData.Add(new MultipartFormDataSection("Name", "admin"));
         formData.Add(new MultipartFormDataSection("Password", "123"));
-        //formData.Add(new MultipartFormDataSection(""));
 
         UnityWebRequest www = UnityWebRequest.Post("http://localhost:25279/StorageData/PostData", formData);
-        //www.SetRequestHeader("Content-Type", "multipart/form-data");
 
         yield return www.SendWebRequest();
 
@@ -107,6 +137,60 @@ public class HttpConnect : MonoBehaviour
         {
             is_connecting = false;
             this.updateResult(www.downloadHandler.text);
+        }
+    }
+
+    private IEnumerator IRequestPNG()
+    {
+        byte[] bs = m_uploadImg.EncodeToJPG();
+
+        List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+        formData.Add(new MultipartFormFileSection("image", bs, "screenshot", "image/jpeg"));
+
+        UnityWebRequest www = UnityWebRequest.Post("http://localhost:25279/StorageData/RequestImage", formData);
+
+        yield return www.SendWebRequest();
+
+        if (www.isNetworkError || www.isHttpError)
+        {
+            this.updateResult(www.error);
+            yield return null;
+        }
+        else
+        {
+            if (www.isDone)
+            {
+                m_downloadImg = new Texture2D((int)img.rectTransform.rect.width, (int)img.rectTransform.rect.height);
+
+                m_downloadImg.LoadImage(www.downloadHandler.data);
+
+                Sprite sprite = Sprite.Create(m_downloadImg, new Rect(0, 0, m_downloadImg.width, m_downloadImg.height), new Vector2(0.5f, 0.5f));
+                img.sprite = sprite;
+
+                Resources.UnloadUnusedAssets();
+            }
+        }
+    }
+
+    private IEnumerator IPlaySound()
+    {
+        UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip("http://localhost:25279/StorageData/GetSounds", AudioType.WAV);
+
+        yield return www.SendWebRequest();
+
+        if (www.isNetworkError || www.isHttpError)
+        {
+            this.updateResult(www.error);
+            yield return null;
+        }
+        else
+        {
+            if (www.isDone)
+            {
+                m_soundClip = DownloadHandlerAudioClip.GetContent(www);
+
+                GetComponent<AudioSource>().PlayOneShot(m_soundClip);
+            }
         }
     }
 }
